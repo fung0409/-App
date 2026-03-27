@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>記帳 App — 登入</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: system-ui, sans-serif; background: #f5f5f3; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+.card { background: #fff; border: 0.5px solid #e0dfd8; border-radius: 16px; padding: 2rem; width: 340px; }
+h1 { font-size: 20px; font-weight: 500; margin-bottom: 0.25rem; color: #1a1a18; }
+.sub { font-size: 13px; color: #888; margin-bottom: 1.5rem; }
+.tabs { display: flex; gap: 0; margin-bottom: 1.5rem; border: 0.5px solid #e0dfd8; border-radius: 8px; overflow: hidden; }
+.tab { flex: 1; padding: 8px; text-align: center; font-size: 13px; cursor: pointer; background: #f5f5f3; color: #888; border: none; }
+.tab.active { background: #fff; color: #1a1a18; font-weight: 500; }
+label { font-size: 13px; color: #555; display: block; margin-bottom: 4px; margin-top: 12px; }
+input { width: 100%; padding: 10px 12px; border: 0.5px solid #d0cfc8; border-radius: 8px; font-size: 14px; background: #fff; color: #1a1a18; }
+input:focus { outline: none; border-color: #888; }
+button.submit { width: 100%; margin-top: 1.25rem; padding: 11px; border: 0.5px solid #d0cfc8; border-radius: 8px; background: #1a1a18; color: #fff; font-size: 14px; font-weight: 500; cursor: pointer; }
+button.submit:hover { background: #333; }
+.error { font-size: 12px; color: #D85A30; margin-top: 10px; min-height: 18px; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>記帳 App</h1>
+  <p class="sub">登入後即可跨裝置同步紀錄</p>
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('login')">登入</button>
+    <button class="tab" onclick="switchTab('register')">註冊</button>
+  </div>
+  <div id="form-area">
+    <label>帳號</label>
+    <input id="username" type="text" placeholder="輸入帳號" />
+    <label>密碼</label>
+    <input id="password" type="password" placeholder="輸入密碼" />
+    <div class="error" id="err"></div>
+    <button class="submit" onclick="submit()">登入</button>
+  </div>
+</div>
+<script>
+let mode = 'login';
+function switchTab(m) {
+  mode = m;
+  document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', (i===0&&m==='login')||(i===1&&m==='register')));
+  document.querySelector('button.submit').textContent = m === 'login' ? '登入' : '註冊';
+  document.getElementById('err').textContent = '';
+}
+async function submit() {
+  const username = document.getElementById('username').value.trim();
+  const password = document.getElementById('password').value;
+  const err = document.getElementById('err');
+  if (!username || !password) { err.textContent = '請填寫帳號與密碼'; return; }
+  const res = await fetch(`/api/${mode}`, {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({username, password})
+  });
+  const data = await res.json();
+  if (data.ok) { window.location.href = '/'; }
+  else { err.textContent = data.error || '發生錯誤'; }
+}
+document.addEventListener('keydown', e => { if (e.key === 'Enter') submit(); });
+</script>
+</body>
+</html>

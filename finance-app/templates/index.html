@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#ffffff">
+<link rel="manifest" href="/static/manifest.json">
+<title>記帳 App</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: system-ui, sans-serif; background: #f5f5f3; min-height: 100vh; }
+.topbar { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: #fff; border-bottom: 0.5px solid #e0dfd8; }
+.topbar-title { font-size: 15px; font-weight: 500; color: #1a1a18; }
+.topbar-user { font-size: 13px; color: #888; display: flex; align-items: center; gap: 10px; }
+.logout-btn { font-size: 12px; padding: 4px 10px; border: 0.5px solid #d0cfc8; border-radius: 6px; background: #fff; cursor: pointer; color: #555; }
+.wrap { max-width: 700px; margin: 0 auto; padding: 1rem; }
+.input-bar { display: flex; gap: 8px; margin-bottom: 0.5rem; }
+.input-bar input { flex: 1; padding: 10px 14px; border: 0.5px solid #d0cfc8; border-radius: 8px; background: #fff; font-size: 15px; color: #1a1a18; }
+.input-bar input:focus { outline: none; border-color: #888; }
+.input-bar button { padding: 10px 16px; border: 0.5px solid #d0cfc8; border-radius: 8px; background: #fff; font-size: 14px; cursor: pointer; color: #1a1a18; }
+.input-bar button:hover { background: #f5f5f3; }
+.hint { font-size: 12px; color: #aaa; margin-bottom: 0.4rem; }
+.date-preview { font-size: 13px; color: #555; margin-bottom: 1.25rem; min-height: 20px; }
+.date-preview span { color: #1D9E75; font-weight: 500; }
+.summary-bar { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 1.25rem; }
+.summary-card { background: #f5f5f3; border-radius: 8px; padding: 12px 14px; }
+.summary-label { font-size: 12px; color: #888; margin-bottom: 4px; }
+.summary-value { font-size: 22px; font-weight: 500; }
+.nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+.nav button { padding: 6px 14px; border: 0.5px solid #d0cfc8; border-radius: 8px; background: #fff; font-size: 14px; cursor: pointer; }
+.nav button:hover { background: #f5f5f3; }
+.nav-title { font-size: 16px; font-weight: 500; color: #1a1a18; }
+.weekdays { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-bottom: 4px; }
+.weekday { text-align: center; font-size: 12px; color: #aaa; padding: 4px 0; }
+.calendar { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.day { border-radius: 8px; padding: 6px 6px 8px; min-height: 72px; border: 0.5px solid transparent; cursor: pointer; }
+.day:hover:not(.empty) { filter: brightness(0.95); border-color: #d0cfc8; }
+.day.empty { background: transparent; cursor: default; pointer-events: none; }
+.day.green { background: #EAF3DE; border-color: #C0DD97; }
+.day.red { background: #FCEBEB; border-color: #F7C1C1; }
+.day.neutral { background: #f0f0ed; }
+.day-num { font-size: 13px; font-weight: 500; margin-bottom: 4px; display: flex; }
+.day-num-inner { width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; }
+.day.today .day-num-inner { background: #1a1a18; color: #fff; border-radius: 50%; }
+.day.green .day-num { color: #3B6D11; }
+.day.red .day-num { color: #A32D2D; }
+.day.neutral .day-num { color: #888; }
+.day-exp { font-size: 11px; font-weight: 500; }
+.day.green .day-exp { color: #3B6D11; }
+.day.red .day-exp { color: #A32D2D; }
+.day.neutral .day-exp { color: #aaa; }
+.day-items { margin-top: 2px; }
+.day-item { font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.5; }
+.day.green .day-item { color: #639922; }
+.day.red .day-item { color: #993C1D; }
+.day.neutral .day-item { color: #aaa; }
+.legend { display: flex; gap: 16px; margin-top: 1rem; font-size: 12px; color: #888; align-items: center; }
+.legend-dot { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+
+/* Popup */
+.popup-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 100; display: flex; align-items: center; justify-content: center; }
+.popup { background: #fff; border-radius: 16px; border: 0.5px solid #e0dfd8; width: 340px; max-width: 92vw; overflow: hidden; }
+.popup-header { padding: 14px 16px 10px; border-bottom: 0.5px solid #e0dfd8; display: flex; align-items: center; justify-content: space-between; }
+.popup-title { font-size: 15px; font-weight: 500; color: #1a1a18; }
+.popup-close { width: 28px; height: 28px; border: none; background: #f0f0ed; border-radius: 50%; cursor: pointer; font-size: 16px; color: #888; }
+.popup-summary { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 12px 16px; border-bottom: 0.5px solid #e0dfd8; }
+.popup-sum-card { border-radius: 8px; padding: 8px 12px; }
+.popup-sum-card.inc { background: #EAF3DE; }
+.popup-sum-card.exp { background: #FCEBEB; }
+.popup-sum-label { font-size: 11px; margin-bottom: 2px; }
+.popup-sum-card.inc .popup-sum-label { color: #3B6D11; }
+.popup-sum-card.exp .popup-sum-label { color: #A32D2D; }
+.popup-sum-value { font-size: 18px; font-weight: 500; }
+.popup-sum-card.inc .popup-sum-value { color: #1D9E75; }
+.popup-sum-card.exp .popup-sum-value { color: #D85A30; }
+.popup-list { padding: 6px 16px 12px; max-height: 240px; overflow-y: auto; }
+.popup-row { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 0.5px solid #e0dfd8; }
+.popup-row:last-child { border-bottom: none; }
+.popup-row-info { flex: 1; min-width: 0; }
+.popup-row-desc { font-size: 13px; color: #1a1a18; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.popup-row-meta { font-size: 11px; color: #aaa; }
+.popup-row-amount { font-size: 14px; font-weight: 500; white-space: nowrap; }
+.popup-row-amount.inc { color: #1D9E75; }
+.popup-row-amount.exp { color: #D85A30; }
+.del-btn { width: 26px; height: 26px; border: 0.5px solid #d0cfc8; border-radius: 6px; background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.del-btn:hover { background: #FCEBEB; border-color: #F7C1C1; }
+.popup-empty { text-align: center; padding: 1.5rem 0; font-size: 13px; color: #aaa; }
+
+/* Confirm */
+.confirm-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 200; display: flex; align-items: center; justify-content: center; }
+.confirm-box { background: #fff; border-radius: 16px; border: 0.5px solid #e0dfd8; width: 300px; max-width: 90vw; overflow: hidden; }
+.confirm-body { padding: 20px 20px 8px; }
+.confirm-title { font-size: 15px; font-weight: 500; color: #1a1a18; margin-bottom: 8px; }
+.confirm-desc { font-size: 13px; color: #888; line-height: 1.6; }
+.confirm-record { margin-top: 10px; padding: 10px 12px; background: #f5f5f3; border-radius: 8px; }
+.confirm-record-name { font-size: 13px; color: #1a1a18; font-weight: 500; }
+.confirm-record-amount { font-size: 12px; margin-top: 2px; }
+.confirm-actions { display: grid; grid-template-columns: 1fr 1fr; border-top: 0.5px solid #e0dfd8; margin-top: 16px; }
+.confirm-cancel { padding: 13px; border: none; border-right: 0.5px solid #e0dfd8; background: transparent; color: #888; font-size: 14px; cursor: pointer; }
+.confirm-cancel:hover { background: #f5f5f3; }
+.confirm-delete { padding: 13px; border: none; background: transparent; color: #D85A30; font-size: 14px; font-weight: 500; cursor: pointer; }
+.confirm-delete:hover { background: #FCEBEB; }
+.loading { text-align: center; padding: 2rem; color: #aaa; font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <span class="topbar-title">記帳 App</span>
+  <div class="topbar-user">
+    <span id="username-label"></span>
+    <button class="logout-btn" onclick="logout()">登出</button>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="input-bar">
+    <input id="inputBox" placeholder="例：3/20 吃飯 150、昨天捷運 30、薪水 50000" oninput="previewDate()" />
+    <button onclick="addRecord()">記錄 ↵</button>
+  </div>
+  <p class="hint">可指定日期：「3/20 吃飯 100」「昨天買書 200」，不寫則填今天。</p>
+  <div class="date-preview" id="datePreview"></div>
+
+  <div class="summary-bar">
+    <div class="summary-card"><div class="summary-label">本月收入</div><div class="summary-value" id="sIncome" style="color:#1D9E75">$0</div></div>
+    <div class="summary-card"><div class="summary-label">本月支出</div><div class="summary-value" id="sExpense" style="color:#D85A30">$0</div></div>
+    <div class="summary-card"><div class="summary-label">結餘</div><div class="summary-value" id="sBalance">$0</div></div>
+  </div>
+
+  <div class="nav">
+    <button onclick="changeMonth(-1)">‹ 上個月</button>
+    <span class="nav-title" id="navTitle"></span>
+    <button onclick="changeMonth(1)">下個月 ›</button>
+  </div>
+  <div class="weekdays">
+    <div class="weekday">日</div><div class="weekday">一</div><div class="weekday">二</div>
+    <div class="weekday">三</div><div class="weekday">四</div><div class="weekday">五</div><div class="weekday">六</div>
+  </div>
+  <div class="calendar" id="calendar"><div class="loading">載入中…</div></div>
+  <div class="legend">
+    <span style="display:flex;align-items:center;gap:5px;"><span class="legend-dot" style="background:#C0DD97"></span>支出 ≤ $500</span>
+    <span style="display:flex;align-items:center;gap:5px;"><span class="legend-dot" style="background:#F7C1C1"></span>支出 &gt; $500</span>
+    <span style="display:flex;align-items:center;gap:5px;"><span class="legend-dot" style="background:#f0f0ed;border:0.5px solid #d0cfc8"></span>無紀錄</span>
+  </div>
+</div>
+
+<div id="popupContainer"></div>
+<div id="confirmContainer"></div>
+
+<script>
+let records = [];
+let viewYear, viewMonth;
+let currentPopupDateKey = null;
+const today = new Date();
+viewYear = today.getFullYear();
+viewMonth = today.getMonth();
+
+const CAT_KW = {
+  餐飲: ['吃','飯','餐','食','咖啡','飲料','早餐','午餐','晚餐','便當','小吃','麵','火鍋'],
+  交通: ['捷運','公車','計程車','uber','油','停車','火車','高鐵'],
+  購物: ['買','購','衣','鞋','包','書'],
+  娛樂: ['電影','遊戲','ktv','唱歌','娛樂','旅遊'],
+  醫療: ['醫','藥','診','健康'],
+  住宿: ['房租','水電','瓦斯','管理費','租'],
+  薪資: ['薪水','薪資','工資','收入','獎金'],
+  其他: []
+};
+
+function classify(t) {
+  for (const [cat, kws] of Object.entries(CAT_KW)) {
+    if (cat === '其他') continue;
+    if (kws.some(k => t.includes(k))) return cat;
+  }
+  return '其他';
+}
+
+function toDateKey(d) { return `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`; }
+
+function dateLabel(d) {
+  const now = new Date();
+  const key = toDateKey(d);
+  if (key === toDateKey(now)) return '今天';
+  const yest = new Date(now); yest.setDate(yest.getDate()-1);
+  if (key === toDateKey(yest)) return '昨天';
+  const before = new Date(now); before.setDate(before.getDate()-2);
+  if (key === toDateKey(before)) return '前天';
+  return `${d.getMonth()+1}/${d.getDate()}`;
+}
+
+function parseDate(raw) {
+  const now = new Date();
+  let target = new Date(now), clean = raw;
+  if (/昨天|昨日/.test(raw)) { target.setDate(now.getDate()-1); clean = raw.replace(/昨天|昨日/g,'').trim(); return {date:target,clean}; }
+  if (/前天|前日/.test(raw)) { target.setDate(now.getDate()-2); clean = raw.replace(/前天|前日/g,'').trim(); return {date:target,clean}; }
+  const md = raw.match(/^(\d{1,2})\/(\d{1,2})\s*/);
+  if (md) { target = new Date(now.getFullYear(), parseInt(md[1])-1, parseInt(md[2])); clean = raw.slice(md[0].length).trim(); return {date:target,clean}; }
+  const kj = raw.match(/^(\d{1,2})月(\d{1,2})日\s*/);
+  if (kj) { target = new Date(now.getFullYear(), parseInt(kj[1])-1, parseInt(kj[2])); clean = raw.slice(kj[0].length).trim(); return {date:target,clean}; }
+  return {date:now,clean:raw};
+}
+
+function parseInput(raw) {
+  const {date, clean} = parseDate(raw.trim());
+  const m = clean.match(/(\d+\.?\d*)/);
+  if (!m) return null;
+  const amount = parseFloat(m[1]);
+  const desc = clean.replace(m[0],'').trim() || '記錄';
+  const cat = classify(raw);
+  const income = cat === '薪資' || /收入|薪|獎/.test(raw);
+  const now = new Date();
+  const pad = n => String(n).padStart(2,'0');
+  return { desc, amount, cat, income,
+    date: `${date.getFullYear()}-${date.getMonth()+1}-${date.getDate()}`,
+    time: `${pad(now.getHours())}:${pad(now.getMinutes())}` };
+}
+
+function previewDate() {
+  const raw = document.getElementById('inputBox').value.trim();
+  const preview = document.getElementById('datePreview');
+  if (!raw) { preview.textContent=''; return; }
+  const {date, clean} = parseDate(raw);
+  if (/\d+/.test(clean)) {
+    preview.innerHTML = `將記錄到 <span>${date.getMonth()+1}/${date.getDate()}（${dateLabel(date)}）</span>`;
+  } else { preview.textContent=''; }
+}
+
+async function addRecord() {
+  const el = document.getElementById('inputBox');
+  const raw = el.value.trim();
+  if (!raw) return;
+  const rec = parseInput(raw);
+  if (!rec) return;
+  const res = await fetch('/api/records', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify(rec)
+  });
+  const data = await res.json();
+  if (data.id) {
+    records.unshift({...rec, id: data.id});
+    el.value = '';
+    document.getElementById('datePreview').textContent = '';
+    const parts = rec.date.split('-');
+    viewYear = parseInt(parts[0]);
+    viewMonth = parseInt(parts[1])-1;
+    render();
+  }
+}
+
+document.getElementById('inputBox').addEventListener('keydown', e => { if (e.key==='Enter') addRecord(); });
+
+async function loadRecords() {
+  const res = await fetch(`/api/records?year=${viewYear}&month=${viewMonth+1}`);
+  records = await res.json();
+  render();
+}
+
+function changeMonth(d) {
+  viewMonth += d;
+  if (viewMonth>11){viewMonth=0;viewYear++;}
+  if (viewMonth<0){viewMonth=11;viewYear--;}
+  loadRecords();
+}
+
+function fmt(n) { return '$'+Math.round(n).toLocaleString(); }
+
+const trashIcon = `<svg viewBox="0 0 16 16" fill="none" style="width:13px;height:13px" stroke="currentColor"><polyline points="2,4 14,4" stroke-width="1.4" stroke-linecap="round"/><path d="M5 4V3a1 1 0 011-1h4a1 1 0 011 1v1" stroke-width="1.4" stroke-linecap="round"/><path d="M6 7v5M10 7v5" stroke-width="1.4" stroke-linecap="round"/><rect x="3" y="4" width="10" height="9" rx="1.5" stroke-width="1.4"/></svg>`;
+
+function openPopup(dateKey) { currentPopupDateKey = dateKey; renderPopup(dateKey); }
+
+function renderPopup(dateKey) {
+  const recs = records.filter(r => r.date === dateKey);
+  const parts = dateKey.split('-');
+  const label = `${parseInt(parts[1])} 月 ${parseInt(parts[2])} 日`;
+  const inc = recs.filter(r=>r.income).reduce((s,r)=>s+r.amount,0);
+  const exp = recs.filter(r=>!r.income).reduce((s,r)=>s+r.amount,0);
+  const rows = recs.length === 0
+    ? '<div class="popup-empty">這天還沒有紀錄</div>'
+    : recs.map(r=>`
+      <div class="popup-row" id="row-${r.id}">
+        <div class="popup-row-info">
+          <div class="popup-row-desc">${r.desc}</div>
+          <div class="popup-row-meta">${r.cat} · ${r.time}</div>
+        </div>
+        <span class="popup-row-amount ${r.income?'inc':'exp'}">${r.income?'+':'-'}${fmt(r.amount)}</span>
+        <button class="del-btn" onclick="askDelete(${r.id})" title="刪除">${trashIcon}</button>
+      </div>`).join('');
+  document.getElementById('popupContainer').innerHTML = `
+    <div class="popup-overlay" onclick="closePopup(event)">
+      <div class="popup" onclick="event.stopPropagation()">
+        <div class="popup-header">
+          <span class="popup-title">${label}</span>
+          <button class="popup-close" onclick="closePopup()">×</button>
+        </div>
+        <div class="popup-summary">
+          <div class="popup-sum-card inc"><div class="popup-sum-label">收入</div><div class="popup-sum-value">${fmt(inc)}</div></div>
+          <div class="popup-sum-card exp"><div class="popup-sum-label">支出</div><div class="popup-sum-value">${fmt(exp)}</div></div>
+        </div>
+        <div class="popup-list">${rows}</div>
+      </div>
+    </div>`;
+}
+
+function closePopup(e) {
+  if (!e || e.target.classList.contains('popup-overlay')) {
+    document.getElementById('popupContainer').innerHTML='';
+    currentPopupDateKey=null;
+  }
+}
+
+function askDelete(id) {
+  const rec = records.find(r=>r.id===id);
+  if (!rec) return;
+  document.getElementById('confirmContainer').innerHTML = `
+    <div class="confirm-overlay">
+      <div class="confirm-box">
+        <div class="confirm-body">
+          <div class="confirm-title">確認刪除？</div>
+          <div class="confirm-desc">這筆紀錄將被永久刪除，無法復原。</div>
+          <div class="confirm-record">
+            <div class="confirm-record-name">${rec.desc}</div>
+            <div class="confirm-record-amount" style="color:${rec.income?'#1D9E75':'#D85A30'}">${rec.income?'+':'-'}${fmt(rec.amount)} · ${rec.cat} · ${rec.date}</div>
+          </div>
+        </div>
+        <div class="confirm-actions">
+          <button class="confirm-cancel" onclick="closeConfirm()">取消</button>
+          <button class="confirm-delete" onclick="doDelete(${id})">確認刪除</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+function closeConfirm() { document.getElementById('confirmContainer').innerHTML=''; }
+
+async function doDelete(id) {
+  await fetch(`/api/records/${id}`, {method:'DELETE'});
+  records = records.filter(r=>r.id!==id);
+  closeConfirm();
+  render();
+  if (currentPopupDateKey) {
+    if (records.some(r=>r.date===currentPopupDateKey)) renderPopup(currentPopupDateKey);
+    else { document.getElementById('popupContainer').innerHTML=''; currentPopupDateKey=null; }
+  }
+}
+
+async function logout() {
+  await fetch('/api/logout', {method:'POST'});
+  window.location.href = '/login';
+}
+
+function render() {
+  const MONTHS = ['一月','二月','三月','四月','五月','六月','七月','八月','九月','十月','十一月','十二月'];
+  document.getElementById('navTitle').textContent = `${viewYear} 年 ${MONTHS[viewMonth]}`;
+  const monthRecs = records.filter(r=>{ const p=r.date.split('-'); return parseInt(p[0])===viewYear&&parseInt(p[1])===viewMonth+1; });
+  const mInc = monthRecs.filter(r=>r.income).reduce((s,r)=>s+r.amount,0);
+  const mExp = monthRecs.filter(r=>!r.income).reduce((s,r)=>s+r.amount,0);
+  const mBal = mInc-mExp;
+  document.getElementById('sIncome').textContent = fmt(mInc);
+  document.getElementById('sExpense').textContent = fmt(mExp);
+  const balEl = document.getElementById('sBalance');
+  balEl.textContent = fmt(mBal);
+  balEl.style.color = mBal>=0?'#1D9E75':'#D85A30';
+  const byDay={};
+  monthRecs.forEach(r=>{ const d=parseInt(r.date.split('-')[2]); if(!byDay[d]) byDay[d]=[]; byDay[d].push(r); });
+  const firstDay=new Date(viewYear,viewMonth,1).getDay();
+  const daysInMonth=new Date(viewYear,viewMonth+1,0).getDate();
+  const isCurMonth=viewYear===today.getFullYear()&&viewMonth===today.getMonth();
+  let html='';
+  for(let i=0;i<firstDay;i++) html+='<div class="day empty"></div>';
+  for(let d=1;d<=daysInMonth;d++){
+    const recs=byDay[d]||[];
+    const exp=recs.filter(r=>!r.income).reduce((s,r)=>s+r.amount,0);
+    const isToday=isCurMonth&&d===today.getDate();
+    const dateKey=`${viewYear}-${viewMonth+1}-${d}`;
+    const cls='day'+(recs.length===0?' neutral':exp<=500?' green':' red')+(isToday?' today':'');
+    const expLine=exp>0?`<div class="day-exp">-${fmt(exp)}</div>`:'';
+    const itemsHtml=recs.slice(0,2).map(r=>`<div class="day-item">${r.desc}</div>`).join('')+(recs.length>2?`<div class="day-item">+${recs.length-2} 筆</div>`:'');
+    html+=`<div class="${cls}" onclick="openPopup('${dateKey}')"><div class="day-num"><span class="day-num-inner">${d}</span></div>${expLine}<div class="day-items">${itemsHtml}</div></div>`;
+  }
+  document.getElementById('calendar').innerHTML=html;
+}
+
+(async () => {
+  const res = await fetch('/api/me');
+  if (!res.ok) { window.location.href='/login'; return; }
+  const data = await res.json();
+  document.getElementById('username-label').textContent = data.username;
+  await loadRecords();
+})();
+</script>
+</body>
+</html>
