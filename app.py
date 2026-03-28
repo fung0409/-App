@@ -7,34 +7,38 @@ from linebot.models import TextSendMessage
 from datetime import datetime, date
 from functools import wraps
 import os
-
+from flask import Flask
+from flask_sqlalchemy import SQLAlchemy
+from flask_bcrypt import Bcrypt
 
 app = Flask(__name__)
+
+# 1. 設定密鑰與資料庫
 app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-change-me")
-app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL", "sqlite:///finance.db")
-app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-
-db = SQLAlchemy(app)
-bcrypt = Bcrypt(app)
-
-LINE_TOKEN = os.environ.get("LINE_CHANNEL_ACCESS_TOKEN", "")
-LINE_USER_ID = os.environ.get("LINE_USER_ID", "")
 
 database_url = os.environ.get('DATABASE_URL')
-
 if database_url:
-    # 這是為了修正 Render 網址開頭可能出現的 postgres:// 問題
+    # 修正 Render 的 postgres 格式
     if database_url.startswith("postgres://"):
         database_url = database_url.replace("postgres://", "postgresql://", 1)
     app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 else:
-    # 本機測試用
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///finance.db'
 
-# 記得這行要留著
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-# -----------------------
 
+# 2. 初始化插件
+db = SQLAlchemy(app)
+bcrypt = Bcrypt(app)
+
+# 3. LINE 設定
+LINE_TOKEN = os.environ.get("LINE_CHANNEL_ACCESS_TOKEN", "")
+LINE_USER_ID = os.environ.get("LINE_USER_ID", "")
+
+# --- 【關鍵補強】這段一定要加，否則雲端資料庫會是空的導致 500 錯誤 ---
+with app.app_context():
+    db.create_all()
+# -----------------------------------------------------------
 
 # ── 資料模型 ──────────────────────────────────────────────
 
