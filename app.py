@@ -8,8 +8,18 @@ from datetime import datetime, date
 from functools import wraps
 import os
 
-# --- 找到這部分並修改 ---
-# 優先讀取雲端的 DATABASE_URL，如果是在你自己電腦跑(沒設變數)，就用原本的 SQLite
+
+app = Flask(__name__)
+app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-change-me")
+app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL", "sqlite:///finance.db")
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
+db = SQLAlchemy(app)
+bcrypt = Bcrypt(app)
+
+LINE_TOKEN = os.environ.get("LINE_CHANNEL_ACCESS_TOKEN", "")
+LINE_USER_ID = os.environ.get("LINE_USER_ID", "")
+
 database_url = os.environ.get('DATABASE_URL')
 
 if database_url:
@@ -25,17 +35,6 @@ else:
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 # -----------------------
 
-
-app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-change-me")
-app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL", "sqlite:///finance.db")
-app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-
-db = SQLAlchemy(app)
-bcrypt = Bcrypt(app)
-
-LINE_TOKEN = os.environ.get("LINE_CHANNEL_ACCESS_TOKEN", "")
-LINE_USER_ID = os.environ.get("LINE_USER_ID", "")
 
 # ── 資料模型 ──────────────────────────────────────────────
 
