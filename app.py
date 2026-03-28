@@ -8,6 +8,24 @@ from datetime import datetime, date
 from functools import wraps
 import os
 
+# --- 找到這部分並修改 ---
+# 優先讀取雲端的 DATABASE_URL，如果是在你自己電腦跑(沒設變數)，就用原本的 SQLite
+database_url = os.environ.get('DATABASE_URL')
+
+if database_url:
+    # 這是為了修正 Render 網址開頭可能出現的 postgres:// 問題
+    if database_url.startswith("postgres://"):
+        database_url = database_url.replace("postgres://", "postgresql://", 1)
+    app.config['SQLALCHEMY_DATABASE_URI'] = database_url
+else:
+    # 本機測試用
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///finance.db'
+
+# 記得這行要留著
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+# -----------------------
+
+
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-change-me")
 app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL", "sqlite:///finance.db")
